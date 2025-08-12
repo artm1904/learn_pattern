@@ -34,6 +34,10 @@ class Duck {
         if (m_flyBehavior->IsFlying()) {
             m_countFly++;
             std::cout << "Fly count: " << m_countFly << std::endl;
+
+			if (m_countFly %2 ==0){
+				m_quackBehavior->Quack();
+			}
         }
     }
 

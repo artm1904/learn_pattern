@@ -4,7 +4,7 @@
 struct IQuackBehavior
 {
 	virtual ~IQuackBehavior(){};
-	virtual void Quack() = 0;
+	virtual void Quack() const = 0;
 };
 
 #endif
