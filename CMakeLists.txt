@@ -8,7 +8,21 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 
+set(LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/contrib)
 
+include(cmake/cpm.cmake)
+
+CPMAddPackage(
+    NAME GOOGLETEST
+    GITHUB_REPOSITORY google/googletest
+    VERSION 1.16.0
+    SOURCE_DIR ${LIB_DIR}/googletest
+    OPTIONS 
+        "INSTALL_GTEST OFF"
+        "gtest_force_shared_crt ON"
+)
+
+enable_testing()
 
 
 
@@ -27,3 +41,4 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 add_subdirectory(src/01_strategy)
+add_subdirectory(tests)
