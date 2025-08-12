@@ -8,7 +8,7 @@ void DrawDuck(Duck const& duck)
 	duck.Display();
 }
 
-	void PlayWithDuck(const Duck& duck)
+void PlayWithDuck(Duck& duck)
 {
 	DrawDuck(duck);
 	duck.Quack();

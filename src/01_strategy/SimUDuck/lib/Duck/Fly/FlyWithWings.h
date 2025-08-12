@@ -8,6 +8,7 @@
 class FlyWithWings : public IFlyBehavior {
    public:
     void Fly() const override { std::cout << "I'm flying with wings!!" << std::endl; }
+	bool IsFlying() const override { return true; }
 };
 
 #endif

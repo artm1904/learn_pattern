@@ -5,8 +5,10 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+
 #include "Dance/IDanceBehavior.h"
 #include "Fly/IFlyBehavior.h"
+#include "Fly/FlyNoWay.h"
 #include "Quack/IQuakBehavior.h"
 
 class Duck {
@@ -26,13 +28,21 @@ class Duck {
 
     void Swim() const { std::cout << "I'm swimming" << std::endl; }
 
-    void Fly() const { m_flyBehavior->Fly(); }
+    void Fly() const {
+        m_flyBehavior->Fly();
+
+        if (m_flyBehavior->IsFlying()) {
+            m_countFly++;
+            std::cout << "Fly count: " << m_countFly << std::endl;
+        }
+    }
 
     void Dance() const { m_danceBehavior->Dance(); }
 
     void SetFlyBehavior(std::unique_ptr<IFlyBehavior>&& flyBehavior) {
         assert(flyBehavior);
         m_flyBehavior = std::move(flyBehavior);
+        m_countFly = 0;
     }
 
     void SetDanceBehavior(std::unique_ptr<IDanceBehavior>&& danceBehavior) {
@@ -47,6 +57,7 @@ class Duck {
     std::unique_ptr<IFlyBehavior> m_flyBehavior;
     std::unique_ptr<IQuackBehavior> m_quackBehavior;
     std::unique_ptr<IDanceBehavior> m_danceBehavior;
+    mutable int m_countFly = 0;
 };
 
 #endif
