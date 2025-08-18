@@ -40,5 +40,5 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     list(APPEND PROJECT_COMPILE_OPTIONS -O3)
 endif()
 
-add_subdirectory(src/01_strategy)
+add_subdirectory(src/observer)
 add_subdirectory(tests)
