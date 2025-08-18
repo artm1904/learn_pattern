@@ -2,10 +2,10 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <vector>
 
 #include "Observer.h"
-
 
 struct SWeatherInfo {
     double temperature = 0;
@@ -20,6 +20,12 @@ class CDisplay : public IObserver<SWeatherInfo> {
             остается публичным
     */
     void Update(SWeatherInfo const& data, IObservable<SWeatherInfo>& subject) override {
+        if (subject.GetLocation() == "In") {
+            std::cout << "In sensor data" << std::endl;
+        } else if (subject.GetLocation() == "Out") {
+            std::cout << "Out sensor data" << std::endl;
+        }
+
         std::cout << "Current Temp " << data.temperature << std::endl;
         std::cout << "Current Hum " << data.humidity << std::endl;
         std::cout << "Current Pressure " << data.pressure << std::endl;
@@ -50,6 +56,12 @@ class CStatsIndicator {
         }
     }
 
+    // Getters for testing
+    double GetMin() const { return m_min; }
+    double GetMax() const { return m_max; }
+    double GetAverage() const { return (m_count == 0) ? 0 : m_acc / m_count; }
+    unsigned GetCount() const { return m_count; }
+
    private:
     double m_min = std::numeric_limits<double>::infinity();
     double m_max = -std::numeric_limits<double>::infinity();
@@ -57,26 +69,50 @@ class CStatsIndicator {
     unsigned m_count = 0;
 };
 
-class CStatsDisplay : public IObserver<SWeatherInfo> {
-   private:
-    void Update(SWeatherInfo const& data, IObservable<SWeatherInfo>& subject) override {
-        m_temperature.Update(data.temperature);
-        m_humidity.Update(data.humidity);
-        m_pressure.Update(data.pressure);
+// Структура для хранения всех индикаторов для одной локации
+struct SLocationStats {
+    CStatsIndicator temperature;
+    CStatsIndicator humidity;
+    CStatsIndicator pressure;
+};
 
-        m_temperature.Print("Temp");
-        m_humidity.Print("Humidity");
-        m_pressure.Print("Pressure");
-        std::cout << "----------------" << std::endl;
+class CStatsDisplay : public IObserver<SWeatherInfo> {
+   public:
+    // Getter for testing
+    const SLocationStats* GetStatsFor(const std::string& location) const {
+        auto it = m_statsByLocation.find(location);
+        if (it != m_statsByLocation.end()) {
+            return &it->second;
+        }
+        return nullptr;
     }
 
-    CStatsIndicator m_temperature;
-    CStatsIndicator m_humidity;
-    CStatsIndicator m_pressure;
+   private:
+    void Update(SWeatherInfo const& data, IObservable<SWeatherInfo>& subject) override {
+        const std::string location = subject.GetLocation();
+
+        m_statsByLocation[location].temperature.Update(data.temperature);
+        m_statsByLocation[location].humidity.Update(data.humidity);
+        m_statsByLocation[location].pressure.Update(data.pressure);
+
+        // Выводим всю известную статистику
+        for (const auto& [loc, stats] : m_statsByLocation) {
+            std::cout << "--- Stats for " << loc << " ---" << std::endl;
+            stats.temperature.Print("Temp");
+            stats.humidity.Print("Humidity");
+            stats.pressure.Print("Pressure");
+            std::cout << "----------------" << std::endl;
+        }
+    }
+
+    std::map<std::string, SLocationStats> m_statsByLocation;
 };
 
 class CWeatherData : public CObservable<SWeatherInfo> {
    public:
+    CWeatherData() = default;
+    CWeatherData(std::string location) : m_location(std::move(location)) {}
+
     // Температура в градусах Цельсия
     double GetTemperature() const { return m_temperature; }
     // Относительная влажность (0...100)
@@ -95,6 +131,8 @@ class CWeatherData : public CObservable<SWeatherInfo> {
     }
 
    protected:
+    std::string GetLocation() const override { return m_location; }
+
     SWeatherInfo GetChangedData() const override {
         SWeatherInfo info;
         info.temperature = GetTemperature();
@@ -104,6 +142,7 @@ class CWeatherData : public CObservable<SWeatherInfo> {
     }
 
    private:
+    std::string m_location;
     double m_temperature = 0.0;
     double m_humidity = 0.0;
     double m_pressure = 760.0;

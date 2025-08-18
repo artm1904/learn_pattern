@@ -1,21 +1,17 @@
 #include "WeatherData.h"
 
-int main()
-{
-	CWeatherData wd;
+int main() {
+    CWeatherData wdIn("In");
+    CWeatherData wdOut("Out");
 
-	CDisplay display;
-	wd.RegisterObserver(display, 10);
+    CDisplay display;
+    wdIn.RegisterObserver(display, 10);
+    wdOut.RegisterObserver(display, 10);
 
-	CStatsDisplay statsDisplay;
-	wd.RegisterObserver(statsDisplay, 1);
+    wdIn.SetMeasurements(24, 65, 760);
+    // ... в консоли появится статистика только для "In"
 
-	wd.SetMeasurements(3, 0.7, 760);
-	wd.SetMeasurements(4, 0.8, 761);
-
-	wd.RemoveObserver(statsDisplay);
-
-	wd.SetMeasurements(10, 0.8, 761);
-	wd.SetMeasurements(-10, 0.8, 761);
-	return 0;
+    wdOut.SetMeasurements(10, 80, 745);
+    // ... в консоли появится обновленная статистика и для "In", и для "Out"
+    return 0;
 }

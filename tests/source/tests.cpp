@@ -89,3 +89,58 @@ TEST(WeatherStation, NotifiesObserversAccordingToPriority) {
     ASSERT_TRUE((notificationOrder[1] == 2 && notificationOrder[2] == 3) ||
                 (notificationOrder[1] == 3 && notificationOrder[2] == 2));
 }
+
+TEST(WeatherStationDuo, TracksStatsSeparatelyForMultipleSubjects) {
+   
+    CWeatherData wdIn("In");
+    CWeatherData wdOut("Out");
+    CStatsDisplay statsDisplay;
+
+    wdIn.RegisterObserver(statsDisplay);
+    wdOut.RegisterObserver(statsDisplay);
+
+    // Act: First measurement from "In"
+    wdIn.SetMeasurements(10, 80, 760);
+
+    
+    const SLocationStats* inStats = statsDisplay.GetStatsFor("In");
+    const SLocationStats* outStats = statsDisplay.GetStatsFor("Out");
+
+    ASSERT_NE(inStats, nullptr);
+    EXPECT_EQ(inStats->temperature.GetCount(), 1);
+    EXPECT_EQ(inStats->temperature.GetMax(), 10);
+    EXPECT_EQ(inStats->humidity.GetMax(), 80);
+    EXPECT_EQ(inStats->pressure.GetMax(), 760);
+    ASSERT_EQ(outStats, nullptr); 
+
+    // Act: First measurement from "Out"
+    wdOut.SetMeasurements(5, 90, 755);
+
+    // Assert: Check "Out" stats, "In" stats should be unchanged
+    inStats = statsDisplay.GetStatsFor("In");
+    outStats = statsDisplay.GetStatsFor("Out");
+
+    ASSERT_NE(inStats, nullptr);
+    EXPECT_EQ(inStats->temperature.GetCount(), 1);  
+    ASSERT_NE(outStats, nullptr);
+    EXPECT_EQ(outStats->temperature.GetCount(), 1);
+    EXPECT_EQ(outStats->temperature.GetMax(), 5);
+    EXPECT_EQ(outStats->humidity.GetMax(), 90);
+    EXPECT_EQ(outStats->pressure.GetMax(), 755);
+
+
+    wdIn.SetMeasurements(20, 70, 765);
+
+
+    inStats = statsDisplay.GetStatsFor("In");
+    outStats = statsDisplay.GetStatsFor("Out");
+
+    ASSERT_NE(inStats, nullptr);
+    EXPECT_EQ(inStats->temperature.GetCount(), 2);
+    EXPECT_EQ(inStats->temperature.GetMin(), 10);
+    EXPECT_EQ(inStats->temperature.GetMax(), 20);
+    EXPECT_NEAR(inStats->temperature.GetAverage(), 15.0, 0.001);
+
+    ASSERT_NE(outStats, nullptr);
+    EXPECT_EQ(outStats->temperature.GetCount(), 1);  
+}
