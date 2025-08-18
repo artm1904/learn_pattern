@@ -3,6 +3,11 @@
 #include <set>
 #include <functional>
 
+
+template <typename T>
+class IObservable;
+
+
 /*
 Шаблонный интерфейс IObserver. Его должен реализовывать класс, 
 желающий получать уведомления от соответствующего IObservable
@@ -13,7 +18,7 @@ template <typename T>
 class IObserver
 {
 public:
-	virtual void Update(T const& data) = 0;
+	virtual void Update(T const& data, IObservable<T> &subject) = 0;
 	virtual ~IObserver() = default;
 };
 
@@ -46,9 +51,14 @@ public:
 	void NotifyObservers() override
 	{
 		T data = GetChangedData();
-		for (auto & observer : m_observers)
+		// Создаем копию списка наблюдателей, чтобы избежать проблем с инвалидацией итераторов,
+		// если один из наблюдателей удалит себя из списка внутри метода Update.
+		auto observersCopy = m_observers;
+		for (auto & observer : observersCopy)
 		{
-			observer->Update(data);
+			// Передаем не только данные, но и ссылку на себя (this),
+			// чтобы наблюдатель при необходимости мог отписаться.
+			observer->Update(data, *this);
 		}
 	}
 
