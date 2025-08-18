@@ -1,25 +1,25 @@
 ﻿#pragma once
 
-#include <set>
 #include <functional>
-
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <vector>
 
 template <typename T>
 class IObservable;
 
-
 /*
-Шаблонный интерфейс IObserver. Его должен реализовывать класс, 
+Шаблонный интерфейс IObserver. Его должен реализовывать класс,
 желающий получать уведомления от соответствующего IObservable
 Параметром шаблона является тип аргумента,
 передаваемого Наблюдателю в метод Update
 */
 template <typename T>
-class IObserver
-{
-public:
-	virtual void Update(T const& data, IObservable<T> &subject) = 0;
-	virtual ~IObserver() = default;
+class IObserver {
+   public:
+    virtual void Update(T const& data, IObservable<T>& subject) = 0;
+    virtual ~IObserver() = default;
 };
 
 /*
@@ -27,51 +27,70 @@ public:
 инициировать рассылку уведомлений зарегистрированным наблюдателям.
 */
 template <typename T>
-class IObservable
-{
-public:
-	virtual ~IObservable() = default;
-	virtual void RegisterObserver(IObserver<T> & observer) = 0;
-	virtual void NotifyObservers() = 0;
-	virtual void RemoveObserver(IObserver<T> & observer) = 0;
+class IObservable {
+   public:
+    virtual ~IObservable() = default;
+    virtual void RegisterObserver(IObserver<T>& observer, int priority = 0) = 0;
+    virtual void NotifyObservers() = 0;
+    virtual void RemoveObserver(IObserver<T>& observer) = 0;
 };
 
 // Реализация интерфейса IObservable
 template <class T>
-class CObservable : public IObservable<T>
-{
-public:
-	typedef IObserver<T> ObserverType;
+class CObservable : public IObservable<T> {
+   public:
+    typedef IObserver<T> ObserverType;
 
-	void RegisterObserver(ObserverType & observer) override
-	{
-		m_observers.insert(&observer);
-	}
+    void RegisterObserver(ObserverType& observer, int priority = 0) override {
+        // Если наблюдатель уже подписан, ничего не делаем.
+        // Проверка за O(1) в среднем.
+        if (m_priorityByObserver.find(&observer) == m_priorityByObserver.end()) {
+            m_priorityByObserver[&observer] = priority;
+            m_observersByPriority[priority].insert(&observer);
+        }
+    }
 
-	void NotifyObservers() override
-	{
-		T data = GetChangedData();
-		// Создаем копию списка наблюдателей, чтобы избежать проблем с инвалидацией итераторов,
-		// если один из наблюдателей удалит себя из списка внутри метода Update.
-		auto observersCopy = m_observers;
-		for (auto & observer : observersCopy)
-		{
-			// Передаем не только данные, но и ссылку на себя (this),
-			// чтобы наблюдатель при необходимости мог отписаться.
-			observer->Update(data, *this);
-		}
-	}
+    void NotifyObservers() override {
+        T data = GetChangedData();
 
-	void RemoveObserver(ObserverType & observer) override
-	{
-		m_observers.erase(&observer);
-	}
+        std::vector<ObserverType*> observersToNotify;
 
-protected:
-	// Классы-наследники должны перегрузить данный метод, 
-	// в котором возвращать информацию об изменениях в объекте
-	virtual T GetChangedData()const = 0;
+        for (auto const& [priority, observers] : m_observersByPriority) {
+            observersToNotify.insert(observersToNotify.end(), observers.begin(), observers.end());
+        }
 
-private:
-	std::set<ObserverType *> m_observers;
+        for (auto* observer : observersToNotify) {
+            observer->Update(data, *this);
+        }
+    }
+
+    void RemoveObserver(ObserverType& observer) override {
+        auto it = m_priorityByObserver.find(&observer);
+        // Если наблюдатель найден
+        if (it != m_priorityByObserver.end()) {
+            int priority = it->second;
+            m_priorityByObserver.erase(it);
+
+            auto& observersForPriority = m_observersByPriority.at(priority);
+            observersForPriority.erase(&observer);
+
+            // Если для данного приоритета не осталось наблюдателей, удаляем и сам приоритет
+            if (observersForPriority.empty()) {
+                m_observersByPriority.erase(priority);
+            }
+        }
+    }
+
+   protected:
+    // Классы-наследники должны перегрузить данный метод,
+    // в котором возвращать информацию об изменениях в объекте
+    virtual T GetChangedData() const = 0;
+
+   private:
+    // Основное хранилище: map<приоритет, set<наблюдатели>>
+    // Ключи (приоритеты) отсортированы по убыванию.
+    std::map<int, std::set<ObserverType*>, std::greater<int>> m_observersByPriority;
+
+    // Вспомогательное хранилище для быстрого поиска приоритета по наблюдателю.
+    std::unordered_map<ObserverType*, int> m_priorityByObserver;
 };
