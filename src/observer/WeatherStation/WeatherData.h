@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include <climits>
+#include <limits>
 #include "Observer.h"
 
 struct SWeatherInfo
@@ -28,37 +28,60 @@ private:
 	}
 };
 
+// Вспомогательный класс для сбора статистики по одному показателю (температура, влажность и т.д.)
+// Это позволяет избежать дублирования кода для каждого типа измерений.
+class CStatsIndicator
+{
+public:
+	void Update(double data)
+	{
+		if (m_min > data)
+		{
+			m_min = data;
+		}
+		if (m_max < data)
+		{
+			m_max = data;
+		}
+		m_acc += data;
+		++m_count;
+	}
+
+	void Print(const std::string& name) const
+	{
+		if (m_count > 0)
+		{
+			std::cout << "Max " << name << " " << m_max << std::endl;
+			std::cout << "Min " << name << " " << m_min << std::endl;
+			std::cout << "Average " << name << " " << (m_acc / m_count) << std::endl;
+		}
+	}
+
+private:
+	double m_min = std::numeric_limits<double>::infinity();
+	double m_max = -std::numeric_limits<double>::infinity();
+	double m_acc = 0;
+	unsigned m_count = 0;
+};
+
 class CStatsDisplay : public IObserver<SWeatherInfo>
 {
 private:
-	/* Метод Update сделан приватным, чтобы ограничить возможность его вызова напрямую
-	Классу CObservable он будет доступен все равно, т.к. в интерфейсе IObserver он
-	остается публичным
-	*/
 	void Update(SWeatherInfo const& data) override
 	{
-		if (m_minTemperature > data.temperature)
-		{
-			m_minTemperature = data.temperature;
-		}
-		if (m_maxTemperature < data.temperature)
-		{
-			m_maxTemperature = data.temperature;
-		}
-		m_accTemperature += data.temperature;
-		++m_countAcc;
+		m_temperature.Update(data.temperature);
+		m_humidity.Update(data.humidity);
+		m_pressure.Update(data.pressure);
 
-		std::cout << "Max Temp " << m_maxTemperature << std::endl;
-		std::cout << "Min Temp " << m_minTemperature << std::endl;
-		std::cout << "Average Temp " << (m_accTemperature / m_countAcc) << std::endl;
+		m_temperature.Print("Temp");
+		m_humidity.Print("Humidity");
+		m_pressure.Print("Pressure");
 		std::cout << "----------------" << std::endl;
 	}
 
-	double m_minTemperature = std::numeric_limits<double>::infinity();
-	double m_maxTemperature = -std::numeric_limits<double>::infinity();
-	double m_accTemperature = 0;
-	unsigned m_countAcc = 0;
-
+	CStatsIndicator m_temperature;
+	CStatsIndicator m_humidity;
+	CStatsIndicator m_pressure;
 };
 
 class CWeatherData : public CObservable<SWeatherInfo>
