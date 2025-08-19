@@ -17,23 +17,25 @@ struct SWeatherInfo {
 };
 
 class CDisplay : public IObserver<SWeatherInfo> {
+   public:
+    CDisplay(std::string name = "Generic Display") : m_name(std::move(name)) {}
+
    private:
     /* Метод Update сделан приватным, чтобы ограничить возможность его вызова напрямую
             Классу CObservable он будет доступен все равно, т.к. в интерфейсе IObserver он
             остается публичным
     */
-    void Update(SWeatherInfo const& data, IObservable<SWeatherInfo>& subject) override {
-        if (subject.GetLocation() == "In") {
-            std::cout << "In sensor data" << std::endl;
-        } else if (subject.GetLocation() == "Out") {
-            std::cout << "Out sensor data" << std::endl;
-        }
-
-        std::cout << "Current Temp " << data.temperature << std::endl;
-        std::cout << "Current Hum " << data.humidity << std::endl;
-        std::cout << "Current Pressure " << data.pressure << std::endl;
+    void Update(SWeatherInfo const& data, IObservable<SWeatherInfo>& subject,
+                const std::string& eventType) override {
+        std::cout << "--- [" << m_name << "] Event '" << eventType << "' from " << subject.GetLocation() << " ---"
+                  << std::endl;
+        std::cout << "Current Temp: " << data.temperature << ", Hum: " << data.humidity
+                  << ", Press: " << data.pressure << ", Wind: " << data.windSpeed << " m/s at "
+                  << data.windDirection << " deg" << std::endl;
         std::cout << "----------------" << std::endl;
     }
+
+    std::string m_name;
 };
 
 // Вспомогательный класс для сбора статистики по одному показателю (температура, влажность и т.д.)
@@ -123,25 +125,30 @@ class CStatsDisplay : public IObserver<SWeatherInfo> {
     }
 
    private:
-    void Update(SWeatherInfo const& data, IObservable<SWeatherInfo>& subject) override {
+    void Update(SWeatherInfo const& data, IObservable<SWeatherInfo>& subject,
+                const std::string& eventType) override {
         const std::string location = subject.GetLocation();
 
-        m_statsByLocation[location].temperature.Update(data.temperature);
-        m_statsByLocation[location].humidity.Update(data.humidity);
-        m_statsByLocation[location].pressure.Update(data.pressure);
-        m_statsByLocation[location].windSpeed.Update(data.windSpeed);
-        m_statsByLocation[location].windDirection.Update(data.windDirection);
-
-        // Выводим всю известную статистику
-        for (const auto& [loc, stats] : m_statsByLocation) {
-            std::cout << "--- Stats for " << loc << " ---" << std::endl;
-            stats.temperature.Print("Temp");
-            stats.humidity.Print("Humidity");
-            stats.pressure.Print("Pressure");
-            stats.windSpeed.Print("Wind Speed");
-            stats.windDirection.Print("Avg Wind Dir");
-            std::cout << "----------------" << std::endl;
+        if (eventType == "Temperature") {
+            m_statsByLocation[location].temperature.Update(data.temperature);
+        } else if (eventType == "Humidity") {
+            m_statsByLocation[location].humidity.Update(data.humidity);
+        } else if (eventType == "Pressure") {
+            m_statsByLocation[location].pressure.Update(data.pressure);
+        } else if (eventType == "Wind") {
+            m_statsByLocation[location].windSpeed.Update(data.windSpeed);
+            m_statsByLocation[location].windDirection.Update(data.windDirection);
         }
+
+        // Выводим статистику только для той локации, от которой пришло уведомление
+        const auto& stats = m_statsByLocation.at(location);
+        std::cout << "--- Stats for " << location << " ---" << std::endl;
+        stats.temperature.Print("Temp");
+        stats.humidity.Print("Humidity");
+        stats.pressure.Print("Pressure");
+        stats.windSpeed.Print("Wind Speed");
+        stats.windDirection.Print("Avg Wind Dir");
+        std::cout << "----------------" << std::endl;
     }
 
     std::map<std::string, SLocationStats> m_statsByLocation;
@@ -161,16 +168,28 @@ class CWeatherData : public CObservable<SWeatherInfo> {
     void MeasurementsChanged() { NotifyObservers(); }
 
     void SetMeasurements(double temp, double humidity, double pressure) {
+        m_changedEvents.clear();
+        if (m_temperature != temp) {
+            m_changedEvents.push_back("Temperature");
+        }
+        if (m_humidity != humidity) {
+            m_changedEvents.push_back("Humidity");
+        }
+        if (m_pressure != pressure) {
+            m_changedEvents.push_back("Pressure");
+        }
+
         m_humidity = humidity;
         m_temperature = temp;
         m_pressure = pressure;
 
-        MeasurementsChanged();
+        if (!m_changedEvents.empty()) {
+            MeasurementsChanged();
+        }
     }
 
    protected:
     std::string GetLocation() const override { return m_location; }
-
     SWeatherInfo GetChangedData() const override {
         SWeatherInfo info;
         info.temperature = GetTemperature();
@@ -179,11 +198,15 @@ class CWeatherData : public CObservable<SWeatherInfo> {
         return info;
     }
 
-   private:
-    std::string m_location;
+    std::vector<std::string> GetChangedEvents() const override { return m_changedEvents; }
+
+    std::vector<std::string> m_changedEvents;
     double m_temperature = 0.0;
     double m_humidity = 0.0;
     double m_pressure = 760.0;
+
+   private:
+    std::string m_location;
 };
 
 class CWeatherDataPro : public CWeatherData {
@@ -195,10 +218,23 @@ class CWeatherDataPro : public CWeatherData {
 
     void SetMeasurements(double temp, double humidity, double pressure, double windSpeed,
                          double windDirection) {
-   
+        m_changedEvents.clear();
+
+        if (m_temperature != temp) m_changedEvents.push_back("Temperature");
+        if (m_humidity != humidity) m_changedEvents.push_back("Humidity");
+        if (m_pressure != pressure) m_changedEvents.push_back("Pressure");
+        if (m_windSpeed != windSpeed || m_windDirection != windDirection)
+            m_changedEvents.push_back("Wind");
+
+        m_temperature = temp;
+        m_humidity = humidity;
+        m_pressure = pressure;
         m_windSpeed = windSpeed;
         m_windDirection = windDirection;
-        CWeatherData::SetMeasurements(temp, humidity, pressure);
+
+        if (!m_changedEvents.empty()) {
+            MeasurementsChanged();
+        }
     }
 
    protected:
