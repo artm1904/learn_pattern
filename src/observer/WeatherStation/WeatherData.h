@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -11,6 +12,8 @@ struct SWeatherInfo {
     double temperature = 0;
     double humidity = 0;
     double pressure = 0;
+    double windSpeed = 0;
+    double windDirection = 0;
 };
 
 class CDisplay : public IObserver<SWeatherInfo> {
@@ -69,11 +72,43 @@ class CStatsIndicator {
     unsigned m_count = 0;
 };
 
+// Специализированный класс для сбора статистики по направлению ветра.
+// Использует векторную алгебру для корректного усреднения углов.
+class CWindDirectionStatsIndicator {
+   public:
+    void Update(double directionInDegrees) {
+        constexpr double PI = 3.1415926535;
+        double directionInRadians = directionInDegrees * PI / 180.0;
+        m_x_sum += std::cos(directionInRadians);
+        m_y_sum += std::sin(directionInRadians);
+        m_count++;
+    }
+
+    void Print(const std::string& name) const {
+        if (m_count > 0) {
+            constexpr double PI = 3.1415926535;
+            double avg_rad = std::atan2(m_y_sum, m_x_sum);
+            double avg_deg = avg_rad * 180.0 / PI;
+            if (avg_deg < 0) {
+                avg_deg += 360.0;
+            }
+            std::cout << name << " " << avg_deg << " degrees" << std::endl;
+        }
+    }
+
+   private:
+    double m_x_sum = 0.0;
+    double m_y_sum = 0.0;
+    unsigned m_count = 0;
+};
+
 // Структура для хранения всех индикаторов для одной локации
 struct SLocationStats {
     CStatsIndicator temperature;
     CStatsIndicator humidity;
     CStatsIndicator pressure;
+    CStatsIndicator windSpeed;
+    CWindDirectionStatsIndicator windDirection;
 };
 
 class CStatsDisplay : public IObserver<SWeatherInfo> {
@@ -94,6 +129,8 @@ class CStatsDisplay : public IObserver<SWeatherInfo> {
         m_statsByLocation[location].temperature.Update(data.temperature);
         m_statsByLocation[location].humidity.Update(data.humidity);
         m_statsByLocation[location].pressure.Update(data.pressure);
+        m_statsByLocation[location].windSpeed.Update(data.windSpeed);
+        m_statsByLocation[location].windDirection.Update(data.windDirection);
 
         // Выводим всю известную статистику
         for (const auto& [loc, stats] : m_statsByLocation) {
@@ -101,6 +138,8 @@ class CStatsDisplay : public IObserver<SWeatherInfo> {
             stats.temperature.Print("Temp");
             stats.humidity.Print("Humidity");
             stats.pressure.Print("Pressure");
+            stats.windSpeed.Print("Wind Speed");
+            stats.windDirection.Print("Avg Wind Dir");
             std::cout << "----------------" << std::endl;
         }
     }
@@ -146,4 +185,34 @@ class CWeatherData : public CObservable<SWeatherInfo> {
     double m_temperature = 0.0;
     double m_humidity = 0.0;
     double m_pressure = 760.0;
+};
+
+class CWeatherDataPro : public CWeatherData {
+   public:
+    CWeatherDataPro(std::string location) : CWeatherData(std::move(location)) {}
+
+    double GetWindSpeed() const { return m_windSpeed; }
+    double GetWindDirection() const { return m_windDirection; }
+
+    void SetMeasurements(double temp, double humidity, double pressure, double windSpeed,
+                         double windDirection) {
+   
+        m_windSpeed = windSpeed;
+        m_windDirection = windDirection;
+        CWeatherData::SetMeasurements(temp, humidity, pressure);
+    }
+
+   protected:
+    SWeatherInfo GetChangedData() const override {
+        // Получаем базовую информацию
+        SWeatherInfo info = CWeatherData::GetChangedData();
+        // Дополняем ее данными о ветре
+        info.windSpeed = GetWindSpeed();
+        info.windDirection = GetWindDirection();
+        return info;
+    }
+
+   private:
+    double m_windSpeed = 0;
+    double m_windDirection = 0;
 };
