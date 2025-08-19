@@ -149,7 +149,6 @@ class CStatsDisplay : public IObserver<SWeatherInfo> {
 
 class CWeatherData : public CObservable<SWeatherInfo> {
    public:
-    CWeatherData() = default;
     CWeatherData(std::string location) : m_location(std::move(location)) {}
 
     // Температура в градусах Цельсия

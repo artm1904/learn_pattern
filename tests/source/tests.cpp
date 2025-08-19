@@ -26,7 +26,7 @@ class ControlObserver : public IObserver<SWeatherInfo> {
 };
 
 TEST(WeatherStation, ObserverCanSafelyRemoveItselfDuringUpdate) {
-    CWeatherData wd;
+    CWeatherData wd("TestStation");
     SelfRemovingObserver selfRemover;
     ControlObserver control;
 
@@ -48,7 +48,7 @@ TEST(WeatherStation, ObserverCanSafelyRemoveItselfDuringUpdate) {
 }
 
 TEST(WeatherStation, NotifiesObserversAccordingToPriority) {
-    CWeatherData wd;
+    CWeatherData wd("TestStation");
     std::vector<int> notificationOrder;
 
     // Тестовый наблюдатель, который записывает свой ID в общий вектор при вызове.
