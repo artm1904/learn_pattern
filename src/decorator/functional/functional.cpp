@@ -29,25 +29,20 @@ string ToUpperCase(string s)
 
 string AddSquareBrackets(string s)
 {
-	s.append("[]");
-
-	rotate(s.begin(), s.end() - 2, s.end() - 1);
-
-	return move(s);
+	// Более простой и читаемый способ обернуть строку
+	return "[" + move(s) + "]";
 }
 
 string AddCurlyBrackets(string s)
 {
-	s.append("{}");
-
-	rotate(s.begin(), s.end() - 2, s.end() - 1);
-
-	return move(s);
+	// Более простой и читаемый способ обернуть строку
+	return "{" + move(s) + "}";
 }
 
 void PrintTransformedStrings(const vector<string>& strings,
 	const StringTransformer& transformer)
 {
+
 	for (const auto& s : strings)
 	{
 		cout << transformer(s) << ", ";

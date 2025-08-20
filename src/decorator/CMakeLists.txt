@@ -4,6 +4,6 @@ project(decorator VERSION 0.1.0)
 
 
 add_executable(${PROJECT_NAME}
-    coffee/main.cpp
+    task/main.cpp
 )
 
