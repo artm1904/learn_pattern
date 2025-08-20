@@ -4,11 +4,11 @@ project(lr_test VERSION 0.1.0)
 enable_testing()
 
 add_executable(${PROJECT_NAME}
-    source/01_strategy/duckTests.cpp
+    source/test.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/01_strategy/SimUDuck
+    ${CMAKE_SOURCE_DIR}/src/decorator
 )
 
 
